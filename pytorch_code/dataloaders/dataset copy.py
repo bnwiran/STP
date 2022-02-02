@@ -1,11 +1,11 @@
 import os
-from sklearn.model_selection import train_test_split
 
-import torch
 import cv2
 import numpy as np
-from torch.utils.data import Dataset
+import torch
 from mypath import Path
+from sklearn.model_selection import train_test_split
+from torch.utils.data import Dataset
 
 
 class VideoDataset(Dataset):

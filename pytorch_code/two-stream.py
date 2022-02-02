@@ -6,11 +6,12 @@
 @LastEditTime: 2020-05-30 02:15:24
 @Description: file content
 '''
-import numpy as np
 import os
+
+import numpy as np
+import pandas as pd
 import scipy.io as scio
-import csv
-import pandas as pd 
+
 
 def main():
     path = './txt'

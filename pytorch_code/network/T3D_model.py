@@ -1,9 +1,6 @@
 '''GoogLeNet with PyTorch.'''
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
-from torch.autograd import Variable
 
 __all__ = ['inception_v1']
 

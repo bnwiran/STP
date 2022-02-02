@@ -7,11 +7,14 @@
 @Description: file content
 '''
 
-import torch
-import numpy as np
-from network import C3D_model, R2Plus1D_model,R3D_model, p3d_model, I3D_model, STP_model
-import cv2
 import os
+
+import cv2
+import numpy as np
+import torch
+
+from network import C3D_model, R2Plus1D_model, R3D_model, p3d_model, I3D_model, STP_model
+
 torch.backends.cudnn.benchmark = True
 
 def CenterCrop(frame, size):

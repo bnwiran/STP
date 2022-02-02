@@ -1,11 +1,10 @@
 import os
-from sklearn.model_selection import train_test_split
 
-import torch
 import cv2
 import numpy as np
+import torch
+from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
-from mypath import Path
 
 
 class VideoDataset(Dataset):
@@ -21,19 +20,19 @@ class VideoDataset(Dataset):
             preprocess (bool): Determines whether to preprocess dataset. Default is False.
     """
 
-    def __init__(self, dataset='ucf101', split='train', clip_len=16, preprocess=False, modelName='R3D'):
-        self.root_dir, self.output_dir = Path.db_dir(dataset)
+    def __init__(self, dataset='ucf101', split='train', clip_len=16, preprocess=False, model_name='R3D'):
+        self.root_dir, self.output_dir = self.__db_dir(dataset)
         folder = os.path.join(self.output_dir, split)
 
         self.clip_len = clip_len
         self.split = split
 
         # The following three parameters are chosen as described in the paper section 4.1
-        if modelName == 'I3D':
+        if model_name == 'I3D':
             self.resize_height = 240
             self.resize_width = 284
             self.crop_size = 224
-        elif modelName == 'P3D':
+        elif model_name == 'P3D':
             self.resize_height = 176
             self.resize_width = 220
             self.crop_size = 160
@@ -46,10 +45,10 @@ class VideoDataset(Dataset):
             raise RuntimeError('Dataset not found or corrupted.' +
                                ' You need to download it from official website.')
 
-        # if (not self.check_preprocess()) or preprocess:
-        #     print('Preprocessing of {} dataset, this will take long, but it will be done only once.'.format(dataset))
-        #     self.preprocess()
-        # self.preprocess()
+        if (not self.check_preprocess()) or preprocess:
+            print('Preprocessing of {} dataset, this will take long, but it will be done only once.'.format(dataset))
+            self.preprocess()
+        self.preprocess()
         # Obtain all the filenames of files inside all the class folders
         # Going through each class folder one at a time
         self.fnames, labels = [], []
@@ -70,14 +69,13 @@ class VideoDataset(Dataset):
             if not os.path.exists('dataloaders/ucf_labels.txt'):
                 with open('dataloaders/ucf_labels.txt', 'w') as f:
                     for id, label in enumerate(sorted(self.label2index)):
-                        f.writelines(str(id+1) + ' ' + label + '\n')
+                        f.writelines(str(id + 1) + ' ' + label + '\n')
 
         elif dataset == 'hmdb51':
             if not os.path.exists('dataloaders/hmdb_labels.txt'):
                 with open('dataloaders/hmdb_labels.txt', 'w') as f:
                     for id, label in enumerate(sorted(self.label2index)):
-                        f.writelines(str(id+1) + ' ' + label + '\n')
-
+                        f.writelines(str(id + 1) + ' ' + label + '\n')
 
     def __len__(self):
         return len(self.fnames)
@@ -92,13 +90,13 @@ class VideoDataset(Dataset):
 
         if self.split == 'test':
             # Perform data augmentation
-            buffer = self.randomflip(buffer)
+            buffer = self.random_flip(buffer)
         buffer = self.normalize(buffer)
         buffer = self.to_tensor(buffer)
         return torch.from_numpy(buffer), torch.from_numpy(labels)
 
     def check_integrity(self):
-        
+
         if not os.path.exists(self.root_dir):
             return False
         else:
@@ -114,7 +112,9 @@ class VideoDataset(Dataset):
         for ii, video_class in enumerate(os.listdir(os.path.join(self.output_dir, 'train'))):
             for video in os.listdir(os.path.join(self.output_dir, 'train', video_class)):
                 video_name = os.path.join(os.path.join(self.output_dir, 'train', video_class, video),
-                                    sorted(os.listdir(os.path.join(self.output_dir, 'train', video_class, video)))[0])
+                                          sorted(
+                                              os.listdir(os.path.join(self.output_dir, 'train', video_class, video)))[
+                                              0])
                 image = cv2.imread(video_name)
                 if np.shape(image)[0] != self.resize_height or np.shape(image)[1] != self.resize_width:
                     return False
@@ -127,9 +127,7 @@ class VideoDataset(Dataset):
         return True
 
     def preprocess(self):
-        # print(self.output_dir)
         if not os.path.exists(os.path.join(self.output_dir, 'train')):
-            # print(1)
             os.makedirs(os.path.join(self.output_dir, 'train'))
             os.makedirs(os.path.join(self.output_dir, 'val'))
             os.makedirs(os.path.join(self.output_dir, 'test'))
@@ -184,7 +182,7 @@ class VideoDataset(Dataset):
                 EXTRACT_FREQUENCY -= 1
                 if frame_count // EXTRACT_FREQUENCY <= 16:
                     EXTRACT_FREQUENCY -= 1
-                    if  frame_count // EXTRACT_FREQUENCY <= 16:
+                    if frame_count // EXTRACT_FREQUENCY <= 16:
                         EXTRACT_FREQUENCY -= 1
 
         count = 0
@@ -192,7 +190,7 @@ class VideoDataset(Dataset):
         retaining = True
 
         if EXTRACT_FREQUENCY > 0:
-            while (count < frame_count and retaining):
+            while count < frame_count and retaining:
                 retaining, frame = capture.read()
                 if frame is None:
                     continue
@@ -204,31 +202,10 @@ class VideoDataset(Dataset):
                     i += 1
                 count += 1
 
-        # Release the VideoCapture once it is no longer needed
+            # Release the VideoCapture once it is no longer needed
             capture.release()
         else:
             capture.release()
-
-    def randomflip(self, buffer):
-        """Horizontally flip the given image and ground truth randomly with a probability of 0.5."""
-
-        if np.random.random() < 0.5:
-            for i, frame in enumerate(buffer):
-                frame = cv2.flip(buffer[i], flipCode=1)
-                buffer[i] = cv2.flip(frame, flipCode=1)
-
-        return buffer
-
-
-    def normalize(self, buffer):
-        for i, frame in enumerate(buffer):
-            frame -= np.array([[[90.0, 98.0, 102.0]]])
-            buffer[i] = frame
-
-        return buffer
-
-    def to_tensor(self, buffer):
-        return buffer.transpose((3, 0, 1, 2))
 
     def load_frames(self, file_dir):
         frames = sorted([os.path.join(file_dir, img) for img in os.listdir(file_dir)])
@@ -242,7 +219,31 @@ class VideoDataset(Dataset):
 
         return buffer
 
-    def crop(self, buffer, clip_len, crop_size):
+    @staticmethod
+    def to_tensor(buffer):
+        return buffer.transpose((3, 0, 1, 2))
+
+    @staticmethod
+    def random_flip(buffer):
+        """Horizontally flip the given image and ground truth randomly with a probability of 0.5."""
+
+        if np.random.random() < 0.5:
+            for i, frame in enumerate(buffer):
+                frame = cv2.flip(buffer[i], flipCode=1)
+                buffer[i] = cv2.flip(frame, flipCode=1)
+
+        return buffer
+
+    @staticmethod
+    def normalize(buffer):
+        for i, frame in enumerate(buffer):
+            frame -= np.array([[[90.0, 98.0, 102.0]]])
+            buffer[i] = frame
+
+        return buffer
+
+    @staticmethod
+    def crop(buffer, clip_len, crop_size):
         # randomly select time index for temporal jittering
         # print(buffer.shape[0] - clip_len)
         time_index = np.random.randint(buffer.shape[0] - clip_len)
@@ -261,13 +262,35 @@ class VideoDataset(Dataset):
 
         return buffer
 
+    @staticmethod
+    def __db_dir(database):
+        root_dir = 'C:/AI/Datasets/hmdb51'
+        output_dir = 'C:/AI/Action Recognition/STP/var/hmdb51'
+        return root_dir, output_dir
+        # if database == 'ucf101':
+        #     # folder that contains class labels
+        #     root_dir = '/Path/to/UCF-101'
 
+        #     # Save preprocess data into output_dir
+        #     output_dir = '/path/to/VAR/ucf101'
 
+        #     return root_dir, output_dir
+        # elif database == 'hmdb51':
+        #     # folder that contains class labels
+        #     root_dir = '/Path/to/hmdb-51'
+
+        #     output_dir = '/path/to/VAR/hmdb51'
+
+        #     return root_dir, output_dir
+        # else:
+        #     print('Database {} not available.'.format(database))
+        #     raise NotImplementedError
 
 
 if __name__ == "__main__":
     from torch.utils.data import DataLoader
-    train_data = VideoDataset(dataset='ucf50', split='train', clip_len=8, preprocess=False)
+
+    train_data = VideoDataset(dataset='hmdb1', split='train', clip_len=8, preprocess=False)
     train_loader = DataLoader(train_data, batch_size=1, shuffle=True, num_workers=4)
 
     for i, sample in enumerate(train_loader):
