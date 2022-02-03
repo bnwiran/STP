@@ -45,10 +45,10 @@ class VideoDataset(Dataset):
             raise RuntimeError('Dataset not found or corrupted.' +
                                ' You need to download it from official website.')
 
-        if (not self.check_preprocess()) or preprocess:
-            print('Preprocessing of {} dataset, this will take long, but it will be done only once.'.format(dataset))
-            self.preprocess()
-        self.preprocess()
+        # if (not self.check_preprocess()) or preprocess:
+        #     print('Preprocessing of {} dataset, this will take long, but it will be done only once.'.format(dataset))
+        #     self.preprocess()
+
         # Obtain all the filenames of files inside all the class folders
         # Going through each class folder one at a time
         self.fnames, labels = [], []
@@ -71,11 +71,11 @@ class VideoDataset(Dataset):
                     for id, label in enumerate(sorted(self.label2index)):
                         f.writelines(str(id + 1) + ' ' + label + '\n')
 
-        elif dataset == 'hmdb51':
-            if not os.path.exists('dataloaders/hmdb_labels.txt'):
-                with open('dataloaders/hmdb_labels.txt', 'w') as f:
-                    for id, label in enumerate(sorted(self.label2index)):
-                        f.writelines(str(id + 1) + ' ' + label + '\n')
+        # elif dataset == 'hmdb51':
+        #     if not os.path.exists('dataloaders/hmdb_labels.txt'):
+        #         with open('dataloaders/hmdb_labels.txt', 'w') as f:
+        #             for id, label in enumerate(sorted(self.label2index)):
+        #                 f.writelines(str(id + 1) + ' ' + label + '\n')
 
     def __len__(self):
         return len(self.fnames)
@@ -84,16 +84,18 @@ class VideoDataset(Dataset):
         # Loading and preprocessing.
 
         buffer = self.load_frames(self.fnames[index])
-        # print(buffer.shape[0])
         buffer = self.crop(buffer, self.clip_len, self.crop_size)
-        labels = np.array(self.label_array[index])
+        labels = np.expand_dims(np.array(self.label_array[index]), axis=0)
 
         if self.split == 'test':
             # Perform data augmentation
             buffer = self.random_flip(buffer)
         buffer = self.normalize(buffer)
         buffer = self.to_tensor(buffer)
-        return torch.from_numpy(buffer), torch.from_numpy(labels)
+        return torch.from_numpy(buffer), torch.from_numpy(labels).type(torch.LongTensor)
+
+    def num_classes(self):
+        return len(self.label2index)
 
     def check_integrity(self):
 
@@ -290,14 +292,10 @@ class VideoDataset(Dataset):
 if __name__ == "__main__":
     from torch.utils.data import DataLoader
 
-    train_data = VideoDataset(dataset='hmdb1', split='train', clip_len=8, preprocess=False)
+    train_data = VideoDataset(dataset='hmdb51', split='train', clip_len=8, preprocess=False)
     train_loader = DataLoader(train_data, batch_size=1, shuffle=True, num_workers=4)
 
-    for i, sample in enumerate(train_loader):
-        inputs = sample[0]
-        labels = sample[1]
-        print(inputs.size())
-        print(labels)
+    (inputs, labels) = next(iter(train_loader))
+    print(inputs.size())
+    print(labels)
 
-        if i == 1:
-            break
