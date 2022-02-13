@@ -225,7 +225,7 @@ def train_model(model_name, dataset, save_dir, lr, num_epochs, save_epoch, useTe
 
 def main():
     num_epochs = 24  # Number of epochs for training
-    resume_epoch = 22  # Default is 0, change if you want to resume
+    resume_epoch = 0  # Default is 0, change if you want to resume
     use_test = True  # See evolution of the test set when training
     n_test_interval = 10  # Run on test set every n_test_interval epochs
     snapshot = 2  # Store a model every snapshot epochs

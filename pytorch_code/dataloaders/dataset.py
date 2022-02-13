@@ -3,8 +3,26 @@ import os
 import cv2
 import numpy as np
 import torch
+from PIL import Image
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
+
+
+class VideoRecord(object):
+    def __init__(self, row):
+        self._data = row
+
+    @property
+    def path(self):
+        return self._data[0]
+
+    @property
+    def num_frames(self):
+        return int(self._data[1])
+
+    @property
+    def label(self):
+        return int(self._data[-1])
 
 
 class VideoDataset(Dataset):
@@ -26,6 +44,14 @@ class VideoDataset(Dataset):
 
         self.clip_len = clip_len
         self.split = split
+        self.root_path = 'C:/AI/Datasets/hmdb51/processed/raw/videos'
+        self.modality = 'RGB'
+        self.list_file = 'C:/AI/Datasets/hmdb51/processed/splits/hmdb51_rgb_train_split_1.txt'
+        self.test_mode = False
+        self.remove_missing = False
+        self.image_tmpl = '{:05d}.jpg'
+
+        self._parse_list()
 
         # The following three parameters are chosen as described in the paper section 4.1
         if model_name == 'I3D':
@@ -71,11 +97,25 @@ class VideoDataset(Dataset):
                     for id, label in enumerate(sorted(self.label2index)):
                         f.writelines(str(id + 1) + ' ' + label + '\n')
 
-        # elif dataset == 'hmdb51':
-        #     if not os.path.exists('dataloaders/hmdb_labels.txt'):
-        #         with open('dataloaders/hmdb_labels.txt', 'w') as f:
-        #             for id, label in enumerate(sorted(self.label2index)):
-        #                 f.writelines(str(id + 1) + ' ' + label + '\n')
+        elif dataset == 'hmdb51':
+            if os.path.exists('dataloaders/hmdb_labels.txt'):
+                with open('dataloaders/hmdb_labels.txt', 'w') as f:
+                    for id, label in enumerate(sorted(self.label2index)):
+                        f.writelines(str(id + 1) + ' ' + label + '\n')
+
+    def _parse_list(self):
+        # check the frame number is large >3:
+        tmp = [x.strip().split(' ') for x in open(self.list_file)]
+        if len(tmp[0]) == 3:  # skip remove_missing for decoding "raw_video label" type dataset_config
+            tmp = [[os.path.join(self.root_path, self.modality, item[0]), item[1], item[2]] for item in tmp]
+            if not self.test_mode or self.remove_missing:
+                tmp = [item for item in tmp if int(item[1]) >= 8]
+        self.video_list = [VideoRecord(item) for item in tmp]
+
+        if self.image_tmpl == '{:06d}-{}_{:05d}.jpg':
+            for v in self.video_list:
+                v._data[1] = int(v._data[1]) / 2
+        print(f'Videos count: {len(self.video_list)}')
 
     def __len__(self):
         return len(self.fnames)
@@ -93,6 +133,34 @@ class VideoDataset(Dataset):
         buffer = self.normalize(buffer)
         buffer = self.to_tensor(buffer)
         return torch.from_numpy(buffer), torch.from_numpy(labels).type(torch.LongTensor)
+
+    # def __getitem__(self, index):
+    #     record = self.video_list[index]
+    #     video_list = os.listdir(record.path)
+    #
+    #     return self.get(record, video_list)
+    #
+    # def get(self, record, video_list):
+    #     images = list()
+    #     for seg_ind in indices:
+    #         p = int(seg_ind)
+    #         for i in range(0, self.new_length, 1):
+    #             if decode_boo:
+    #                 seg_imgs = [Image.fromarray(video_list[p - 1].asnumpy()).convert('RGB')]
+    #             else:
+    #                 seg_imgs = self._load_image(record.path, p)
+    #             images.extend(seg_imgs)
+    #             if (len(video_list) - self.new_length + 1) >= 8:
+    #                 if p < (len(video_list)):
+    #                     p += 1
+    #             else:
+    #                 if p < (len(video_list)):
+    #                     p += 1
+    #
+    #     process_data, record_label = self.transform((images, record.label)) if self.transform \
+    #         else (images, record.label)
+    #
+    #     return process_data, record_label
 
     def num_classes(self):
         return len(self.label2index)
@@ -177,15 +245,15 @@ class VideoDataset(Dataset):
         frame_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         # Make sure splited video has at least 16 frames
-        EXTRACT_FREQUENCY = 4
-        if frame_count // EXTRACT_FREQUENCY <= 16:
-            EXTRACT_FREQUENCY -= 1
-            if frame_count // EXTRACT_FREQUENCY <= 16:
-                EXTRACT_FREQUENCY -= 1
-                if frame_count // EXTRACT_FREQUENCY <= 16:
-                    EXTRACT_FREQUENCY -= 1
-                    if frame_count // EXTRACT_FREQUENCY <= 16:
-                        EXTRACT_FREQUENCY -= 1
+        EXTRACT_FREQUENCY = 1
+        # if frame_count // EXTRACT_FREQUENCY <= 16:
+        #     EXTRACT_FREQUENCY -= 1
+        #     if frame_count // EXTRACT_FREQUENCY <= 16:
+        #         EXTRACT_FREQUENCY -= 1
+        #         if frame_count // EXTRACT_FREQUENCY <= 16:
+        #             EXTRACT_FREQUENCY -= 1
+        #             if frame_count // EXTRACT_FREQUENCY <= 16:
+        #                 EXTRACT_FREQUENCY -= 1
 
         count = 0
         i = 0
@@ -204,10 +272,8 @@ class VideoDataset(Dataset):
                     i += 1
                 count += 1
 
-            # Release the VideoCapture once it is no longer needed
-            capture.release()
-        else:
-            capture.release()
+        # Release the VideoCapture once it is no longer needed
+        capture.release()
 
     def load_frames(self, file_dir):
         frames = sorted([os.path.join(file_dir, img) for img in os.listdir(file_dir)])
@@ -266,23 +332,23 @@ class VideoDataset(Dataset):
 
     @staticmethod
     def __db_dir(database):
-        root_dir = 'C:/AI/Datasets/hmdb51'
+        root_dir = 'C:/AI/Datasets/hmdb51/raw/videos'
         output_dir = 'C:/AI/Action Recognition/STP/var/hmdb51'
         return root_dir, output_dir
         # if database == 'ucf101':
         #     # folder that contains class labels
         #     root_dir = '/Path/to/UCF-101'
-
+        #
         #     # Save preprocess data into output_dir
         #     output_dir = '/path/to/VAR/ucf101'
-
+        #
         #     return root_dir, output_dir
         # elif database == 'hmdb51':
         #     # folder that contains class labels
         #     root_dir = '/Path/to/hmdb-51'
-
+        #
         #     output_dir = '/path/to/VAR/hmdb51'
-
+        #
         #     return root_dir, output_dir
         # else:
         #     print('Database {} not available.'.format(database))
@@ -298,4 +364,3 @@ if __name__ == "__main__":
     (inputs, labels) = next(iter(train_loader))
     print(inputs.size())
     print(labels)
-
