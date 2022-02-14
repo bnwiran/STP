@@ -88,11 +88,11 @@ def train_model(model_name, dataset, save_dir, lr, num_epochs, save_epoch, useTe
     writer = SummaryWriter(logdir=log_dir)
 
     print('Training model on {} dataset...'.format(dataset))
-    train_dataloader = DataLoader(train_ds, batch_size=8, shuffle=True, num_workers=4)
+    train_dataloader = DataLoader(train_ds, batch_size=24, shuffle=True, num_workers=4)
     val_dataloader = DataLoader(VideoDataset(dataset=dataset, split='val', clip_len=16, model_name=model_name),
-                                batch_size=8, num_workers=4)
+                                batch_size=24, num_workers=4)
     test_dataloader = DataLoader(VideoDataset(dataset=dataset, split='test', clip_len=16, model_name=model_name),
-                                 batch_size=8, num_workers=4)
+                                 batch_size=24, num_workers=4)
 
     train_val_loaders = {'train': train_dataloader, 'val': val_dataloader}
     train_val_sizes = {x: len(train_val_loaders[x].dataset) for x in ['train', 'val']}
@@ -174,6 +174,9 @@ def train_model(model_name, dataset, save_dir, lr, num_epochs, save_epoch, useTe
             print("Execution time: " + str(stop_time - start_time) + "\n")
 
         if epoch % save_epoch == (save_epoch - 1):
+            if not os.path.exists(os.path.join(save_dir, 'models')):
+                os.makedirs(os.path.join(save_dir, 'models'))
+
             torch.save({
                 'epoch': epoch + 1,
                 'state_dict': model.state_dict(),
@@ -225,7 +228,7 @@ def train_model(model_name, dataset, save_dir, lr, num_epochs, save_epoch, useTe
 
 def main():
     num_epochs = 24  # Number of epochs for training
-    resume_epoch = 22  # Default is 0, change if you want to resume
+    resume_epoch = 0  # Default is 0, change if you want to resume
     use_test = True  # See evolution of the test set when training
     n_test_interval = 10  # Run on test set every n_test_interval epochs
     snapshot = 2  # Store a model every snapshot epochs

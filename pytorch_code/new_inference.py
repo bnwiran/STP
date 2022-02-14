@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 import torch
 
-from network import C3D_model, R2Plus1D_model, R3D_model, p3d_model, I3D_model, STP_model
+from network import C3D_model, R2Plus1D_model, R3D_model, P3D_model, I3D_model, STP_model
 
 torch.backends.cudnn.benchmark = True
 
@@ -56,7 +56,7 @@ def main():
       size = (171, 128)
       crop_size = 112
     elif modelName == 'P3D':
-      model = p3d_model.P3D63(num_classes=num_classes)
+      model = P3D_model.P3D63(num_classes=num_classes)
       size = (176, 210)
       crop_size = 160
     elif modelName == 'R3D':

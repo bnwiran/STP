@@ -45,9 +45,9 @@ class VideoDataset(Dataset):
             raise RuntimeError('Dataset not found or corrupted.' +
                                ' You need to download it from official website.')
 
-        # if (not self.check_preprocess()) or preprocess:
-        #     print('Preprocessing of {} dataset, this will take long, but it will be done only once.'.format(dataset))
-        #     self.preprocess()
+        if (not self.check_preprocess()) or preprocess:
+            print('Preprocessing of {} dataset, this will take long, but it will be done only once.'.format(dataset))
+            self.preprocess()
 
         # Obtain all the filenames of files inside all the class folders
         # Going through each class folder one at a time
@@ -71,11 +71,11 @@ class VideoDataset(Dataset):
                     for id, label in enumerate(sorted(self.label2index)):
                         f.writelines(str(id + 1) + ' ' + label + '\n')
 
-        # elif dataset == 'hmdb51':
-        #     if not os.path.exists('dataloaders/hmdb_labels.txt'):
-        #         with open('dataloaders/hmdb_labels.txt', 'w') as f:
-        #             for id, label in enumerate(sorted(self.label2index)):
-        #                 f.writelines(str(id + 1) + ' ' + label + '\n')
+        elif dataset == 'hmdb51':
+            if not os.path.exists('dataloaders/hmdb_labels.txt'):
+                with open('dataloaders/hmdb_labels.txt', 'w') as f:
+                    for id, label in enumerate(sorted(self.label2index)):
+                        f.writelines(str(id + 1) + ' ' + label + '\n')
 
     def __len__(self):
         return len(self.fnames)
@@ -266,7 +266,7 @@ class VideoDataset(Dataset):
 
     @staticmethod
     def __db_dir(database):
-        root_dir = 'C:/AI/Datasets/hmdb51'
+        root_dir = 'C:/AI/Datasets/hmdb51/raw/videos'
         output_dir = 'C:/AI/Action Recognition/STP/var/hmdb51'
         return root_dir, output_dir
         # if database == 'ucf101':
