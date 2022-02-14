@@ -20,10 +20,7 @@ class SpatialAttn(nn.Module):
         w = x.size(4)
         x = x.permute(0, 2, 1, 3, 4)  # e.g. 4, 16, 1, 56, 56
         x = x.view(x.size(0), t, -1)  # e.g. 4, 16, 3156
-        z = x
-        for a in range(x.size(0)):
-            for b in range(x.size(1)):
-                z[a, b, :] /= torch.sum(z[a, b, :])
+        z = x / torch.sum(x, keepdim=True, dim=2)
         z = z.view(x.size(0), 1, t, h, w)  # e.g. 4, 1, 16, 56, 56
         x = res * z
         x = res + x
@@ -31,8 +28,8 @@ class SpatialAttn(nn.Module):
         # print(x.shape)
         for a in range(x.size(0)):
             out[a, :, :, :, :] = self.pool(x[a, :, :, :, :])
-        # print(out.shape)
-        return out #.cuda()
+
+        return out.cuda()
 
 
 class TemporalAttn(nn.Module):

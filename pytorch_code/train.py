@@ -10,11 +10,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from dataloaders.dataset import VideoDataset
-from network import C3D_model, R2Plus1D_model, R3D_model, I3D_model, T3D_model, STP_model
+from network import C3D_model, R2Plus1D_model, R3D_model, I3D_model, T3D_model, STP_model, P3D_model
 
 # Use GPU if available else revert to CPU
-from pytorch_code.network import P3D_model
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -69,6 +67,9 @@ def train_model(model_name, dataset, save_dir, lr, num_epochs, save_epoch, useTe
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10,
                                           gamma=0.1)  # the scheduler divides the lr by 10 every 10 epochs
 
+    model.to(device)
+    criterion.to(device)
+
     if resume_epoch == 0:
         print("Training {} from scratch...".format(model_name))
     else:
@@ -81,8 +82,6 @@ def train_model(model_name, dataset, save_dir, lr, num_epochs, save_epoch, useTe
         optimizer.load_state_dict(checkpoint['opt_dict'])
 
     print('Total params: %.2fM' % (sum(p.numel() for p in model.parameters()) / 1000000.0))
-    model.to(device)
-    criterion.to(device)
 
     log_dir = "./logs"
     writer = SummaryWriter(logdir=log_dir)
