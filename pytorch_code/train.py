@@ -87,11 +87,11 @@ def train_model(model_name, dataset, save_dir, lr, num_epochs, save_epoch, useTe
     writer = SummaryWriter(logdir=log_dir)
 
     print('Training model on {} dataset...'.format(dataset))
-    train_dataloader = DataLoader(train_ds, batch_size=24, shuffle=True, num_workers=4)
+    train_dataloader = DataLoader(train_ds, batch_size=24, shuffle=True, num_workers=12)
     val_dataloader = DataLoader(VideoDataset(dataset=dataset, split='val', clip_len=16, model_name=model_name),
-                                batch_size=24, num_workers=4)
+                                batch_size=24, num_workers=12)
     test_dataloader = DataLoader(VideoDataset(dataset=dataset, split='test', clip_len=16, model_name=model_name),
-                                 batch_size=24, num_workers=4)
+                                 batch_size=24, num_workers=12)
 
     train_val_loaders = {'train': train_dataloader, 'val': val_dataloader}
     train_val_sizes = {x: len(train_val_loaders[x].dataset) for x in ['train', 'val']}
@@ -115,8 +115,8 @@ def train_model(model_name, dataset, save_dir, lr, num_epochs, save_epoch, useTe
 
             for inputs, labels in tqdm(train_val_loaders[phase]):
                 # move inputs and labels to the device the training is taking place on
-                inputs = Variable(inputs, requires_grad=True).to(device)
-                labels = Variable(labels).to(device)
+                inputs = inputs.to(device)
+                labels = labels.to(device)
                 optimizer.zero_grad()
 
                 if phase == 'train':
@@ -254,4 +254,5 @@ def main():
 
 
 if __name__ == "__main__":
+    torch.manual_seed(0)
     main()

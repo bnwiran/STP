@@ -9,27 +9,17 @@ class SpatialAttn(nn.Module):
 
     def __init__(self):
         super(SpatialAttn, self).__init__()
-        self.pool = nn.MaxPool2d(kernel_size=[2, 2], stride=(2, 2))
+        self.pool = nn.MaxPool3d(kernel_size=[1, 2, 2], stride=(1, 2, 2))
 
     def forward(self, x):
         # e.g. 4, 128, 16, 56, 56
         res = x
         x = x.mean(1, keepdim=True)  # e.g. 4, 1, 16, 56, 56
-        t = x.size(2)
-        h = x.size(3)
-        w = x.size(4)
-        x = x.permute(0, 2, 1, 3, 4)  # e.g. 4, 16, 1, 56, 56
-        x = x.view(x.size(0), t, -1)  # e.g. 4, 16, 3156
-        z = x / torch.sum(x, keepdim=True, dim=2)
-        z = z.view(x.size(0), 1, t, h, w)  # e.g. 4, 1, 16, 56, 56
+        z = x / torch.sum(x, keepdim=True, dim=[-2, -1])  # e.g. 4, 1, 16, 56, 56
         x = res * z
         x = res + x
-        out = torch.empty(x.size(0), x.size(1), x.size(2), int(x.size(3) / 2), int(x.size(4) / 2))
-        # print(x.shape)
-        for a in range(x.size(0)):
-            out[a, :, :, :, :] = self.pool(x[a, :, :, :, :])
 
-        return out.cuda()
+        return self.pool(x)
 
 
 class TemporalAttn(nn.Module):
@@ -46,10 +36,10 @@ class TemporalAttn(nn.Module):
         x = x.permute(0, 2, 1, 3, 4)  # e.g. 4, 16, 128, 56, 56
         x = x.reshape(x.size(0), t, -1)  # e.g. 4, 16, 128*56*56
         x = x.mean(2, keepdim=True)  # e.g. 4, 16, 1
-        z = x
-        for a in range(x.size(0)):
-            z[a, :, :] /= torch.sum(z[a, :, :])
-        z = z.view(x.size(0), 1, t, 1, 1)  # e.g. 4, 1, 16, 1, 1
+        z = x/torch.sum(x, dim=[-2, -1], keepdim=True)  # e.g. 4, 16, 1
+        z = F.softmax(z, dim=1)
+        z = z.reshape(x.size(0), 1, t, 1, 1)  # e.g. 4, 1, 16, 1, 1
+
         out = res * z
         out = out + res
         # output = out[:,:,0:out.size(2),:,:]
@@ -83,6 +73,10 @@ class MaxPool3dSamePadding(nn.MaxPool3d):
         pad_h = self.compute_pad(1, h)
         pad_w = self.compute_pad(2, w)
 
+        pad_t = int(np.ceil(((t - 1) * self.stride[0] + self.kernel_size[0] - t) / 2))
+        pad_h = int(np.ceil(((h - 1) * self.stride[1] + self.kernel_size[1] - h) / 2))
+        pad_w = int(np.ceil(((w - 1) * self.stride[2] + self.kernel_size[2] - w) / 2))
+
         pad_t_f = pad_t // 2
         pad_t_b = pad_t - pad_t_f
         pad_h_f = pad_h // 2
@@ -90,40 +84,42 @@ class MaxPool3dSamePadding(nn.MaxPool3d):
         pad_w_f = pad_w // 2
         pad_w_b = pad_w - pad_w_f
 
-        pad = (pad_w_f, pad_w_b, pad_h_f, pad_h_b, pad_t_f, pad_t_b)
+        # pad = (pad_w_f, pad_w_b, pad_h_f, pad_h_b, pad_t_f, pad_t_b)
+
+        pad = (pad_w, pad_w, pad_h, pad_h, pad_t, pad_t)
 
         x = F.pad(x, pad)
         return super(MaxPool3dSamePadding, self).forward(x)
 
 
-class MaxPool3dSamePadding1(nn.MaxPool3d):
-
-    def compute_pad(self, dim, s):
-        if s % self.stride[dim] == 0:
-            return max(self.kernel_size[dim] - self.stride[dim], 0)
-        else:
-            return max(self.kernel_size[dim] - (s % self.stride[dim]), 0)
-
-    def forward(self, x):
-        # compute 'same' padding
-        (batch, channel, t, h, w) = x.size()
-        # print t,h,w
-
-        out_h = np.ceil(float(h) / float(self.stride[1]))
-        out_w = np.ceil(float(w) / float(self.stride[2]))
-
-        pad_h = self.compute_pad(1, h)
-        pad_w = self.compute_pad(2, w)
-
-        pad_h_f = pad_h // 2
-        pad_h_b = pad_h - pad_h_f
-        pad_w_f = pad_w // 2
-        pad_w_b = pad_w - pad_w_f
-
-        pad = (pad_w_f, pad_w_b, pad_h_f, pad_h_b, 0, 0)
-
-        x = F.pad(x, pad)
-        return super(MaxPool3dSamePadding1, self).forward(x)
+# class MaxPool3dSamePadding1(nn.MaxPool3d):
+#
+#     def compute_pad(self, dim, s):
+#         if s % self.stride[dim] == 0:
+#             return max(self.kernel_size[dim] - self.stride[dim], 0)
+#         else:
+#             return max(self.kernel_size[dim] - (s % self.stride[dim]), 0)
+#
+#     def forward(self, x):
+#         # compute 'same' padding
+#         (batch, channel, t, h, w) = x.size()
+#         # print t,h,w
+#
+#         out_h = np.ceil(float(h) / float(self.stride[1]))
+#         out_w = np.ceil(float(w) / float(self.stride[2]))
+#
+#         pad_h = self.compute_pad(1, h)
+#         pad_w = self.compute_pad(2, w)
+#
+#         pad_h_f = pad_h // 2
+#         pad_h_b = pad_h - pad_h_f
+#         pad_w_f = pad_w // 2
+#         pad_w_b = pad_w - pad_w_f
+#
+#         pad = (pad_w_f, pad_w_b, pad_h_f, pad_h_b, 0, 0)
+#
+#         x = F.pad(x, pad)
+#         return super(MaxPool3dSamePadding1, self).forward(x)
 
 
 class MaxPool2dSamePadding(nn.MaxPool2d):
@@ -145,12 +141,16 @@ class MaxPool2dSamePadding(nn.MaxPool2d):
         pad_h = self.compute_pad(0, h)
         pad_w = self.compute_pad(1, w)
 
+        pad_h = int(np.ceil(((h - 1) * self.stride[1] + self.kernel_size[1] - h) / 2))
+        pad_w = int(np.ceil(((w - 1) * self.stride[2] + self.kernel_size[2] - w) / 2))
+
         pad_h_f = pad_h // 2
         pad_h_b = pad_h - pad_h_f
         pad_w_f = pad_w // 2
         pad_w_b = pad_w - pad_w_f
 
-        pad = (pad_w_f, pad_w_b, pad_h_f, pad_h_b)
+        # pad = (pad_w_f, pad_w_b, pad_h_f, pad_h_b)
+        pad = (pad_w, pad_w, pad_h, pad_h)
         x = F.pad(x, pad)
         return super(MaxPool2dSamePadding, self).forward(x)
 
@@ -209,6 +209,10 @@ class Unit3D(nn.Module):
         pad_w = self.compute_pad(2, w)
         # print pad_t, pad_h, pad_w
 
+        pad_t = int(np.ceil(((t - 1) * self._stride[0] + self._kernel_shape[0] - t) / 2))
+        pad_h = int(np.ceil(((h - 1) * self._stride[1] + self._kernel_shape[1] - h) / 2))
+        pad_w = int(np.ceil(((w - 1) * self._stride[2] + self._kernel_shape[2] - w) / 2))
+
         pad_t_f = pad_t // 2
         pad_t_b = pad_t - pad_t_f
         pad_h_f = pad_h // 2
@@ -219,6 +223,8 @@ class Unit3D(nn.Module):
         pad = (pad_w_f, pad_w_b, pad_h_f, pad_h_b, pad_t_f, pad_t_b)
         # print x.size()
         # print pad
+
+        pad = (pad_w, pad_w, pad_h, pad_h, pad_t, pad_t)
         x = F.pad(x, pad)
         # print x.size()
 
@@ -412,7 +418,7 @@ class STP(nn.Module):
         if self._final_endpoint == end_point: return
 
         end_point = 'Logits'
-        self.avg_pool = nn.AvgPool3d(kernel_size=[2, 4, 4],
+        self.avg_pool = nn.AvgPool3d(kernel_size=[16, 56, 56],
                                      stride=(1, 1, 1))
         self.dropout = nn.Dropout(dropout_keep_prob)
         self.logits = Unit3D(in_channels=384 + 384 + 128 + 128, output_channels=self._num_classes,
@@ -442,7 +448,6 @@ class STP(nn.Module):
     def forward(self, x):
         for end_point in self.VALID_ENDPOINTS:
             if end_point in self.end_points:
-                # print(end_point)
                 if end_point == 'TA1':
                     x, index = self._modules[end_point](x)
                 else:
