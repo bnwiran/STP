@@ -73,9 +73,9 @@ class MaxPool3dSamePadding(nn.MaxPool3d):
         pad_h = self.compute_pad(1, h)
         pad_w = self.compute_pad(2, w)
 
-        pad_t = int(np.ceil(((t - 1) * self.stride[0] + self.kernel_size[0] - t) / 2))
-        pad_h = int(np.ceil(((h - 1) * self.stride[1] + self.kernel_size[1] - h) / 2))
-        pad_w = int(np.ceil(((w - 1) * self.stride[2] + self.kernel_size[2] - w) / 2))
+        # pad_t = int(np.ceil(((t - 1) * self.stride[0] + self.kernel_size[0] - t) / 2))
+        # pad_h = int(np.ceil(((h - 1) * self.stride[1] + self.kernel_size[1] - h) / 2))
+        # pad_w = int(np.ceil(((w - 1) * self.stride[2] + self.kernel_size[2] - w) / 2))
 
         pad_t_f = pad_t // 2
         pad_t_b = pad_t - pad_t_f
@@ -84,9 +84,9 @@ class MaxPool3dSamePadding(nn.MaxPool3d):
         pad_w_f = pad_w // 2
         pad_w_b = pad_w - pad_w_f
 
-        # pad = (pad_w_f, pad_w_b, pad_h_f, pad_h_b, pad_t_f, pad_t_b)
+        pad = (pad_w_f, pad_w_b, pad_h_f, pad_h_b, pad_t_f, pad_t_b)
 
-        pad = (pad_w, pad_w, pad_h, pad_h, pad_t, pad_t)
+        # pad = (pad_w, pad_w, pad_h, pad_h, pad_t, pad_t)
 
         x = F.pad(x, pad)
         return super(MaxPool3dSamePadding, self).forward(x)
@@ -141,16 +141,16 @@ class MaxPool2dSamePadding(nn.MaxPool2d):
         pad_h = self.compute_pad(0, h)
         pad_w = self.compute_pad(1, w)
 
-        pad_h = int(np.ceil(((h - 1) * self.stride[1] + self.kernel_size[1] - h) / 2))
-        pad_w = int(np.ceil(((w - 1) * self.stride[2] + self.kernel_size[2] - w) / 2))
+        # pad_h = int(np.ceil(((h - 1) * self.stride[1] + self.kernel_size[1] - h) / 2))
+        # pad_w = int(np.ceil(((w - 1) * self.stride[2] + self.kernel_size[2] - w) / 2))
 
         pad_h_f = pad_h // 2
         pad_h_b = pad_h - pad_h_f
         pad_w_f = pad_w // 2
         pad_w_b = pad_w - pad_w_f
 
-        # pad = (pad_w_f, pad_w_b, pad_h_f, pad_h_b)
-        pad = (pad_w, pad_w, pad_h, pad_h)
+        pad = (pad_w_f, pad_w_b, pad_h_f, pad_h_b)
+        # pad = (pad_w, pad_w, pad_h, pad_h)
         x = F.pad(x, pad)
         return super(MaxPool2dSamePadding, self).forward(x)
 
@@ -209,9 +209,9 @@ class Unit3D(nn.Module):
         pad_w = self.compute_pad(2, w)
         # print pad_t, pad_h, pad_w
 
-        pad_t = int(np.ceil(((t - 1) * self._stride[0] + self._kernel_shape[0] - t) / 2))
-        pad_h = int(np.ceil(((h - 1) * self._stride[1] + self._kernel_shape[1] - h) / 2))
-        pad_w = int(np.ceil(((w - 1) * self._stride[2] + self._kernel_shape[2] - w) / 2))
+        # pad_t = int(np.ceil(((t - 1) * self._stride[0] + self._kernel_shape[0] - t) / 2))
+        # pad_h = int(np.ceil(((h - 1) * self._stride[1] + self._kernel_shape[1] - h) / 2))
+        # pad_w = int(np.ceil(((w - 1) * self._stride[2] + self._kernel_shape[2] - w) / 2))
 
         pad_t_f = pad_t // 2
         pad_t_b = pad_t - pad_t_f
@@ -224,7 +224,7 @@ class Unit3D(nn.Module):
         # print x.size()
         # print pad
 
-        pad = (pad_w, pad_w, pad_h, pad_h, pad_t, pad_t)
+        # pad = (pad_w, pad_w, pad_h, pad_h, pad_t, pad_t)
         x = F.pad(x, pad)
         # print x.size()
 
@@ -418,7 +418,7 @@ class STP(nn.Module):
         if self._final_endpoint == end_point: return
 
         end_point = 'Logits'
-        self.avg_pool = nn.AvgPool3d(kernel_size=[16, 56, 56],
+        self.avg_pool = nn.AvgPool3d(kernel_size=[2, 4, 4],
                                      stride=(1, 1, 1))
         self.dropout = nn.Dropout(dropout_keep_prob)
         self.logits = Unit3D(in_channels=384 + 384 + 128 + 128, output_channels=self._num_classes,
